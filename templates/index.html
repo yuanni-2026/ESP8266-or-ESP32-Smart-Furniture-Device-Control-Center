@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cyan">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能家具 IoT 设备管理平台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- 粒子背景画布 -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- 背景动态网格 -->
+    <div class="grid-bg"></div>
+    <div class="scan-line"></div>
+
+    <!-- 浮动光晕 -->
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">⬡</span>
+                <span class="logo-text glitch-text" data-text="SMARTHOME IoT">SMART<span class="logo-accent">HOME</span> IoT</span>
+            </div>
+            <div class="header-subtitle">ESP8266 / ESP32 智能家具设备管控中心</div>
+        </div>
+        <div class="header-right">
+            <!-- 主题切换器 -->
+            <div class="theme-switcher" title="切换主题">
+                <span class="theme-switcher-label">THEME</span>
+                <span class="theme-dot active" data-theme-value="cyan" title="青蓝科技"></span>
+                <span class="theme-dot" data-theme-value="purple" title="赛博紫"></span>
+                <span class="theme-dot" data-theme-value="orange" title="烈焰橙"></span>
+                <span class="theme-dot" data-theme-value="matrix" title="矩阵绿"></span>
+                <span class="theme-dot" data-theme-value="rose" title="玫瑰红"></span>
+                <span class="theme-dot theme-dot-light" data-theme-value="light" title="简约白"></span>
+                <span class="theme-dot theme-dot-light" data-theme-value="sky" title="淡天蓝"></span>
+                <span class="theme-dot theme-dot-light" data-theme-value="lavender" title="淡薰衣草"></span>
+                <span class="theme-dot theme-dot-light" data-theme-value="peach" title="淡蜜桃"></span>
+                <span class="theme-dot theme-dot-light" data-theme-value="mint" title="淡薄荷"></span>
+            </div>
+            <div class="status-badge" id="dbStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">MongoDB 连接中...</span>
+            </div>
+            <div class="time-display" id="currentTime">--:--:--</div>
+        </div>
+    </header>
+
+    <!-- 统计面板 -->
+    <section class="stats-panel">
+        <div class="stat-card">
+            <div class="stat-icon">📡</div>
+            <div class="stat-info">
+                <div class="stat-value" id="totalDevices">0</div>
+                <div class="stat-label">设备总数</div>
+            </div>
+            <div class="stat-bar"><div class="stat-bar-fill" id="barTotal"></div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-info">
+                <div class="stat-value online" id="onlineDevices">0</div>
+                <div class="stat-label">在线设备</div>
+            </div>
+            <div class="stat-bar"><div class="stat-bar-fill online" id="barOnline"></div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-info">
+                <div class="stat-value offline" id="offlineDevices">0</div>
+                <div class="stat-label">离线设备</div>
+            </div>
+            <div class="stat-bar"><div class="stat-bar-fill offline" id="barOffline"></div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏠</div>
+            <div class="stat-info">
+                <div class="stat-value" id="roomCount">0</div>
+                <div class="stat-label">覆盖房间</div>
+            </div>
+            <div class="stat-bar"><div class="stat-bar-fill" id="barRoom"></div></div>
+        </div>
+    </section>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 操作工具栏 -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="搜索设备ID / 名称 / 芯片 / 房间 / 家具类型..." />
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn btn-refresh" id="btnRefresh" title="刷新列表">
+                    <span>⟳</span> 刷新
+                </button>
+                <button class="btn btn-primary" id="btnAdd">
+                    <span>＋</span> 新增设备
+                </button>
+            </div>
+        </div>
+
+        <!-- 设备列表 -->
+        <div class="device-list" id="deviceList">
+            <!-- 设备卡片由 JS 动态渲染 -->
+        </div>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">暂无设备数据</div>
+            <div class="empty-hint">点击右上角「新增设备」开始添加你的第一个智能家具设备</div>
+        </div>
+    </main>
+
+    <!-- 新增/编辑设备弹窗 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">新增智能设备</h2>
+                <button class="modal-close" id="modalClose">✕</button>
+            </div>
+            <form class="modal-body" id="deviceForm">
+                <input type="hidden" id="formOriginalId" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>设备ID <span class="required">*</span></label>
+                        <input type="text" id="formDeviceId" placeholder="如: ESP32-001" required />
+                    </div>
+                    <div class="form-group">
+                        <label>设备名称 <span class="required">*</span></label>
+                        <input type="text" id="formName" placeholder="如: 智能升降桌控制器" required />
+                    </div>
+                    <div class="form-group">
+                        <label>芯片型号</label>
+                        <select id="formChip">
+                            <option value="ESP32-S3">ESP32-S3</option>
+                            <option value="ESP32-WROOM">ESP32-WROOM</option>
+                            <option value="ESP32-C3">ESP32-C3</option>
+                            <option value="ESP8266-12F">ESP8266-12F</option>
+                            <option value="ESP8266-01S">ESP8266-01S</option>
+                            <option value="ESP32-S2">ESP32-S2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>所在房间</label>
+                        <input type="text" id="formRoom" placeholder="如: 书房 / 客厅 / 主卧" />
+                    </div>
+                    <div class="form-group">
+                        <label>家具类型</label>
+                        <select id="formFurniture">
+                            <option value="升降桌">升降桌</option>
+                            <option value="衣柜">衣柜</option>
+                            <option value="沙发">沙发</option>
+                            <option value="床">智能床</option>
+                            <option value="鞋柜">智能鞋柜</option>
+                            <option value="橱柜">智能橱柜</option>
+                            <option value="书架">智能书架</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>设备状态</label>
+                        <select id="formStatus">
+                            <option value="online">在线</option>
+                            <option value="offline">离线</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IP 地址</label>
+                        <input type="text" id="formIp" placeholder="如: 192.168.1.101" />
+                    </div>
+                    <div class="form-group">
+                        <label>固件版本</label>
+                        <input type="text" id="formFirmware" placeholder="如: v2.1.0" />
+                    </div>
+                    <div class="form-group form-full">
+                        <label>功能特性（逗号分隔）</label>
+                        <input type="text" id="formFeatures" placeholder="如: 高度调节, 久坐提醒, 蓝牙联动" />
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="btnCancel">取消</button>
+                <button class="btn btn-primary" id="btnSubmit">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

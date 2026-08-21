@@ -795,6 +795,34 @@ pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:5001 app:app
 ```
 
+### Q7: 启动应用时提示 `ModuleNotFoundError: No module named 'flask'`？
+
+**A:** 这是因为当前 Python 环境中没有安装项目依赖。在项目目录下执行以下命令安装依赖：
+
+```bash
+cd /path/to/mongodb-docker
+pip3 install -r requirements.txt
+```
+
+或直接安装指定版本：
+
+```bash
+pip3 install Flask==3.0.3 pymongo==4.8.0
+```
+
+> **⚠️ 注意**：如果 `pip3 install` 后仍然报 `ModuleNotFoundError`，很可能是 `pip3` 和 `python3` 指向了不同的 Python 解释器（多版本 Python 共存时常见）。请使用以下命令确保依赖安装到 `python3` 对应的解释器中：
+> ```bash
+> python3 -m pip install -r requirements.txt
+> ```
+
+安装完成后再启动应用：
+
+```bash
+python3 app.py
+```
+
+启动成功后浏览器访问 `http://localhost:5001` 即可。
+
 ---
 
 ## Mongo Express 可视化管理工具
